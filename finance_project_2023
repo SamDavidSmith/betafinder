@@ -1,0 +1,59 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar 15 15:37:36 2023
+
+@author: sammy
+"""
+import pandas as pd
+import numpy as np
+
+import yfinance as yf
+
+AAPLindex_symbol = "AAPL"
+MARKETindex_symbol = "^GSPC"
+
+# Apple stock prices
+AAPLindex_ticker = yf.Ticker(AAPLindex_symbol)
+AAPLhistorical_data = AAPLindex_ticker.history(period = "max")
+AAPLmonthly_data = AAPLhistorical_data["Close"].resample("M").last()
+
+# Market index values
+MARKETindex_ticker = yf.Ticker(MARKETindex_symbol)
+MARKEThistorical_data = MARKETindex_ticker.history(period="max")
+MARKETmonthly_data = MARKEThistorical_data["Close"].resample("M").last()
+
+# Beta value is a value where:
+    #beta = 1 means the stock's movement depends on the movement of the market index
+    #beta > 1 means the stock will move 'beta' times as much as the market moves
+    #beta < 1 means the stock will move 'beta' times as much as the market moves
+    #beta < 0 means the stock will move in the opposite way to the market's movement dependent on 'beta'
+
+dfAAPL = pd.DataFrame(AAPLmonthly_data)
+dfMARKET = pd.DataFrame(MARKETmonthly_data)
+df_merged = pd.merge(dfAAPL, dfMARKET, on='Date')
+
+df_merged['Apple_Returns'] = df_merged['Close_x'].pct_change()
+df_merged['Market_Returns'] = df_merged['Close_y'].pct_change()
+
+covariance = np.cov(df_merged['Apple_Returns'].dropna(), df_merged['Market_Returns'].dropna())[0][1]
+variance = np.var(df_merged['Market_Returns'].dropna())
+
+beta = covariance / variance
+print("Beta coefficient:", beta)
+
+def BETA_FINDER(stock_symbol):
+    df_stock = yf.download(stock_symbol, interval="1mo")
+    df_stock = df_stock.reset_index()
+    df_market = yf.download('^GSPC', interval="1mo")
+    df_market = df_market.reset_index()  
+    df_merged = pd.merge(df_stock, df_market, on='Date')
+
+    df_merged['Stock_Returns'] = df_merged['Adj Close_x'].pct_change()
+    df_merged['Market_Returns'] = df_merged['Adj Close_y'].pct_change()
+    
+    covariance = np.cov(df_merged['Stock_Returns'].dropna(), df_merged['Market_Returns'].dropna())[0][1]
+    variance = np.var(df_merged['Market_Returns'].dropna())
+    beta = covariance / variance
+    return beta
+
+BETA_FINDER('AAPL')
